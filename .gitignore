@@ -1,0 +1,6 @@
+.venv/
+cache/
+__pycache__/
+*.pyc
+# Model weights are large; publish them via GitHub Releases instead
+models/*.pt
