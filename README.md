@@ -1,4 +1,4 @@
-# InsPLAD Fault Classifier
+# transmission-line-defect-classifier
 
 A deep learning model that looks at a drone image of a power-line component and decides whether it is **FAULTY** or **NOT FAULTY**. If it is faulty, the model also names the defect type: **rust**, **missing cap** or **bird nest**.
 
@@ -28,7 +28,7 @@ Input images should show **one component, cropped**, as in the dataset. The mode
 ## Project structure
 
 ```
-fault_model/
+transmission-line-defect-classifier/
 ├── config.py          # paths, class names, label mapping
 ├── common.py          # model builder, image transforms
 ├── prepare_data.py    # indexes the dataset, makes train/holdout/test splits, caches resized images
@@ -60,7 +60,7 @@ Download InsPLAD and place it next to this folder, so the layout looks like this
 
 ```
 <parent>/
-├── fault_model/                      # this repo
+├── transmission-line-defect-classifier/   # this repo
 └── InsPLAD_Dataset/
     └── supervised_fault_classification/
         └── defect_supervised/
