@@ -2,5 +2,9 @@
 cache/
 __pycache__/
 *.pyc
-# Model weights are large; publish them via GitHub Releases instead
+# Keep only the deployed model in git (16 MB); other checkpoints stay local
 models/*.pt
+!models/best.pt
+!models/best_traced.pt
+space_build/
+*.log

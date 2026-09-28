@@ -6,9 +6,11 @@ It is built with PyTorch and a pretrained EfficientNet (via `timm`), and trained
 
 ```
 $ python predict.py samples/
-NOT FAULTY                p_fault=0.021  samples/insulator_01.jpg
-FAULTY    (rust)          p_fault=0.973  samples/yoke_07.jpg
-FAULTY    (missing-cap)   p_fault=0.991  samples/glass_12.jpg
+NOT FAULTY                p_fault=0.194  samples/glass_insulator_good.jpg
+FAULTY     (missing-cap)  p_fault=0.998  samples/glass_insulator_missing_cap.jpg
+FAULTY     (bird-nest)    p_fault=0.969  samples/vari_grip_bird_nest.jpg
+FAULTY     (rust)         p_fault=0.990  samples/yoke_suspension_rust.jpg
+NOT FAULTY                p_fault=0.229  samples/lightning_rod_good.jpg
 ```
 
 ## Supported components
@@ -35,6 +37,12 @@ transmission-line-defect-classifier/
 ├── train.py           # trains the model and picks the decision threshold
 ├── evaluate.py        # full metrics on the test set
 ├── predict.py         # run the trained model on your own images
+├── app.py             # web UI (Gradio)
+├── export_traced.py   # exports the model to TorchScript (low-RAM version used by the web app)
+├── render.yaml        # Render deployment settings
+├── requirements-render.txt  # packages for the hosted app (CPU-only)
+├── deploy_space.py    # bundle + upload the web UI to Hugging Face Spaces (needs PRO)
+├── examples/          # sample images shown in the web UI
 └── models/            # trained checkpoints (.pt) and test reports (.json)
 ```
 
@@ -45,7 +53,7 @@ Requires Python 3.10 or newer. An NVIDIA GPU is strongly recommended for trainin
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install torch torchvision timm scikit-learn pillow matplotlib
+pip install -r requirements.txt
 ```
 
 Check that PyTorch can see the GPU:
@@ -142,6 +150,15 @@ print(result)
 #  'defect_type': 'rust', 'class_probabilities': {...}}
 ```
 
+### 5. Web app
+
+```bash
+python app.py            # open http://127.0.0.1:7860
+python app.py --share    # temporary public link
+```
+
+Upload or paste an image and get **FAULTY / NOT FAULTY** with the defect type. The "Many images" tab checks a batch and exports a CSV. See [DEPLOY.md](DEPLOY.md) for free permanent hosting on Render.
+
 ## How the model works
 
 - **Backbone:** EfficientNet-B0 pretrained on ImageNet, fine-tuned on all five component types together.
@@ -151,19 +168,35 @@ print(result)
 
 ## Results
 
-> Results will be filled in after the final training run.
-
-Test set: the dataset's `val` folders, 6,417 images, 146 of them faulty.
+The model is EfficientNet-B0 at 320 px, trained for 20 epochs. The best checkpoint came from epoch 13, and the decision threshold is 0.527. It was tested on the dataset's `val` folders: **6,417 images the model never saw during training or tuning**, 146 of them faulty.
 
 | Metric | Value |
 |---|---|
-| ROC-AUC | – |
-| Balanced accuracy | – |
-| Precision (faulty) | – |
-| Recall (faulty) | – |
-| F1 (faulty) | – |
+| ROC-AUC | **0.995** |
+| Balanced accuracy | **97.7%** |
+| Recall (faults caught) | **95.9%** (140 / 146) |
+| Precision (flags that were real faults) | 79.6% |
+| F1 (faulty) | 0.870 |
+| Accuracy | 99.4% |
+| Defect-type accuracy (on caught faults) | 100% |
 
-**Note:** the test set is very imbalanced. Yoke suspension alone has 5,742 good images and only 20 rusted ones. Plain accuracy would look high even for a model that never flags anything, so ROC-AUC, balanced accuracy and recall are the numbers to watch.
+Confusion matrix: 140 faults caught, 6 faults missed, 36 false alarms, 6,235 correct "not faulty".
+
+Per component:
+
+| Component | Images | Faulty | ROC-AUC | Recall | Precision | Missed | False alarms |
+|---|---|---|---|---|---|---|---|
+| Glass insulator | 59 | 30 | 0.962 | 83.3% | 96.2% | 5 | 1 |
+| Lightning-rod suspension | 251 | 20 | 1.000 | 100% | 100% | 0 | 0 |
+| Polymer-insulator upper shackle | 64 | 33 | 0.999 | 97.0% | 100% | 1 | 0 |
+| Vari-grip | 281 | 43 | 0.993 | 100% | 78.2% | 0 | 12 |
+| Yoke suspension | 5,762 | 20 | 1.000 | 100% | 46.5% | 0 | 23 |
+
+**How to read this:** the test set is very imbalanced. Yoke suspension alone has 5,742 good images and only 20 rusted ones. Most false alarms come from that component, yet they are only 0.4% of its good images (23 of 5,742). Across all components, the model catches 96% of faults.
+
+For inspection work, a missed fault usually costs more than an extra look at a flagged image. If you need fewer false alarms instead, raise the threshold (the `threshold` value stored in the checkpoint).
+
+The full metrics are in `models/best.test_report.json`.
 
 ## Limitations
 

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: transmission-line-defect-classifier
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: python app.py
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: OMP_NUM_THREADS
+        value: "1"
+      # Fewer malloc arenas keeps the multi-threaded server's memory well under the free plan's 512 MB
+      - key: MALLOC_ARENA_MAX
+        value: "2"

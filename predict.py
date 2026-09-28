@@ -8,6 +8,8 @@ e.g. a glass insulator, lightning-rod suspension, polymer-insulator upper shackl
 """
 import argparse
 import csv
+import json
+import zipfile
 from pathlib import Path
 
 import torch
@@ -17,14 +19,27 @@ from common import ROOT, build_model, eval_transform, load_rgb
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
 
+def is_torchscript(path):
+    with zipfile.ZipFile(path) as z:
+        return any("/code/" in n for n in z.namelist())
+
+
 class FaultDetector:
+    """Loads either a training checkpoint (models/best.pt) or the TorchScript export (models/best_traced.pt,
+    made by export_traced.py), which runs without timm/torchvision and so needs much less RAM."""
+
     def __init__(self, model_path=ROOT / "models" / "best.pt", device=None):
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-        ckpt = torch.load(model_path, map_location=self.device)
-        self.classes, self.threshold = ckpt["classes"], ckpt["threshold"]
-        self.model = build_model(ckpt["arch"], pretrained=False).to(self.device).eval()
-        self.model.load_state_dict(ckpt["state_dict"])
-        self.tf = eval_transform(ckpt["img_size"])
+        if is_torchscript(model_path):
+            extra = {"meta.json": ""}
+            self.model = torch.jit.load(model_path, map_location=self.device, _extra_files=extra).eval()
+            meta = json.loads(extra["meta.json"])
+        else:
+            meta = torch.load(model_path, map_location=self.device)
+            self.model = build_model(meta["arch"], pretrained=False).to(self.device).eval()
+            self.model.load_state_dict(meta["state_dict"])
+        self.classes, self.threshold = meta["classes"], meta["threshold"]
+        self.tf = eval_transform(meta["img_size"])
 
     @torch.no_grad()
     def predict(self, image):

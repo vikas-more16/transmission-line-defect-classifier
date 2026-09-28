@@ -1,0 +1,7 @@
+# Packages for the hosted web app only. CPU PyTorch is ~10x smaller than the CUDA build (Render has no GPU),
+# and the app runs the TorchScript model (models/best_traced.pt), so timm/torchvision are not needed.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+numpy
+pillow
+gradio

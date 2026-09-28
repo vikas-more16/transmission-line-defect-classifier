@@ -112,7 +112,8 @@ def main():
                 + ((p < 0.5) & (hold_fault == 0)).sum() / (hold_fault == 0).sum()) / 2
         type_acc = (logits.argmax(1).numpy() == hold_y).mean()
         score = auc + bacc
-        history.append(dict(epoch=epoch, loss=total / n, holdout_auc=auc, holdout_bacc=bacc, holdout_type_acc=type_acc))
+        history.append(dict(epoch=epoch, loss=total / n, holdout_auc=float(auc), holdout_bacc=float(bacc),
+                            holdout_type_acc=float(type_acc)))
         mark = ""
         if score > best_score:
             best_score, mark = score, " *"
